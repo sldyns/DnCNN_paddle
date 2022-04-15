@@ -117,7 +117,7 @@ app.run(logdir="logs")
 
 在 BSD58 数据集上作了 10 次测试，噪声强度为 15
 
-```
+```shell
 python val.py --log_dir logs --test_data BSD68 --test_noiseL 15
 ```
 
@@ -129,11 +129,17 @@ python val.py --log_dir logs --test_data BSD68 --test_noiseL 15
 
 显著达到了验收精度.
 
+### 预训练模型导出：
+
+```shell
+python export_model.py --num_of_layers 17 --logdir logs --savedir output/
+```
+
 ### 预测
 
 以 BSD58 数据为例，噪声强度为 15，结果存放在 `results/` 文件夹下
 
-```
+```shell
 python infer.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15
 ```
 

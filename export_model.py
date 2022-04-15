@@ -29,11 +29,11 @@ def main(opt):
     new_net = paddle.jit.to_static(
         new_model,
         input_spec=[paddle.static.InputSpec(shape=shape, dtype='float32')])
-    save_path = os.path.join(opt.save_dir, 'model')
+    save_path = os.path.join(opt.savedir, 'model')
     paddle.jit.save(new_net, save_path)
 
 
-    print(f'Model is saved in {opt.save_dir}.')
+    print(f'Model is saved in {opt.savedir}.')
 
 
 if __name__ == '__main__':
