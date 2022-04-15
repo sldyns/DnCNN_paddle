@@ -129,6 +129,18 @@ python val.py --log_dir logs --test_data BSD68 --test_noiseL 15
 
 显著达到了验收精度.
 
+### 预测
+
+以 BSD58 数据为例，噪声强度为 15，结果存放在 `results/` 文件夹下
+
+```
+python infer.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15
+```
+
+其中，`results/couple` 中的图片为 原始图像、带噪图像、去噪结果，3 张图片拼接得到的：
+
+![test001](test001.png)
+
 ## 6. TIPC
 
 首先安装AutoLog（规范化日志输出工具）
