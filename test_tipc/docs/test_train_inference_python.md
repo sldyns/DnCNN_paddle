@@ -34,7 +34,7 @@ test_tipc
 
 ## 3 测试流程
 
-### 2.1 准备数据
+### 3.1 准备数据
 
 用于基础训练推理测试的数据位于`test_tipc/data/`，可在项目根目录下运行以下命令解压：
 
@@ -42,7 +42,7 @@ test_tipc
 bash test_tipc/prepare.sh ./test_tipc/configs/DnCNN/train_infer_python.txt 'lite_train_lite_infer'
 ```
 
-### 2.2 准备环境
+### 3.2 准备环境
 
 - 安装 PaddlePaddle >= 2.2.0
 
@@ -52,7 +52,7 @@ bash test_tipc/prepare.sh ./test_tipc/configs/DnCNN/train_infer_python.txt 'lite
   pip install  https://paddleocr.bj.bcebos.com/libs/auto_log-1.2.0-py3-none-any.whl
   ```
 
-### 2.3 功能测试
+### 3.3 功能测试
 
 使用本工具，可以测试不同功能的支持情况，以及预测结果是否对齐，测试流程概括如下：
 
@@ -78,3 +78,4 @@ Run successfully with command - python export_model.py --num_of_layers 17 --logd
 Run successfully with command - python infer.py --use-gpu=True --model-dir=./test_tipc/output/DnCNN/norm_train_gpus_0 --batch-size=1   --benchmark=False > ./test_tipc/output/DnCNN/python_infer_gpu_batchsize_1.log 2>&1 !
 Run successfully with command - python infer.py --use-gpu=False --model-dir=./test_tipc/output/DnCNN/norm_train_gpus_0 --batch-size=1   --benchmark=False > ./test_tipc/output/DnCNN/python_infer_cpu_batchsize_1.log 2>&1 !
 ```
+
