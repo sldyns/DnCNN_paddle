@@ -50,18 +50,18 @@ DnCNN_Paddle
     |-- LICENSE              # LICENSE文件
     |-- models.py            # 模型定义代码
     |-- README.md            # README.md文件
-    |-- test.py              # 测试文件
+    |-- val.py               # 验证文件
     |-- train.py             # 单机单卡训练文件
     |-- train2.py            # 单机多卡训练文件
     |-- utils.py             # 一些工具文件
-    |-- val.py               # 测试代码
+    |-- infer.py             # 推理代码
 ```
 
 ## 4. 环境依赖
 
 PaddlePaddle >= 2.1.2
 
-scikit-image >= 
+scikit-image == 0.19.2
 
 ## 5. 快速开始
 
@@ -115,10 +115,10 @@ app.run(logdir="logs")
 
 ### 模型验证
 
-在 BSD58 数据集上作了 10 次测试，噪声强度为 15
+在 BSD58 数据集上作了 10 次测试，噪声强度为 15，结果存放在 `results/` 文件夹下
 
 ```shell
-python val.py --log_dir logs --test_data BSD68 --test_noiseL 15
+python val.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15
 ```
 
 输出如下：
@@ -129,23 +129,44 @@ python val.py --log_dir logs --test_data BSD68 --test_noiseL 15
 
 显著达到了验收精度.
 
-### 预训练模型导出：
-
-```shell
-python export_model.py --num_of_layers 17 --logdir logs --savedir output/
-```
-
-### 预测
-
-以 BSD58 数据为例，噪声强度为 15，结果存放在 `results/` 文件夹下
-
-```shell
-python infer.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15
-```
-
-其中，`results/couple` 中的图片为 原始图像、带噪图像、去噪结果，3 张图片拼接得到的：
+`results/couple` 中的图片为 原始图像、带噪图像、去噪结果，3 张图片拼接得到的：
 
 ![test001](test001.png)
+
+### 推理过程：
+
+需要安装 reprod_log：
+
+```shell
+pip3 install reprod_log --force-reinstall
+```
+
+模型动转静导出：
+
+```shell
+python export_model.py --num_of_layers 17 --logdir logs --save-inference-dir output/
+```
+
+最终在`output/`文件夹下会生成下面的3个文件：
+
+```
+output
+  |----model.pdiparams     : 模型参数文件
+  |----model.pdmodel       : 模型结构文件
+  |----model.pdiparams.info: 模型参数信息文件
+```
+
+模型推理：
+
+```
+python infer.py --model-dir output --use-gpu True --benchmark False --img-path data/BSD68/test002.png
+```
+
+输出结果为：
+
+```shell
+image_name: data/BSD68/test002.png, psnr: 32.762483771446746
+```
 
 ## 6. TIPC
 
@@ -158,8 +179,8 @@ pip install  https://paddleocr.bj.bcebos.com/libs/auto_log-1.2.0-py3-none-any.wh
 在linux下，进入 DnCNN_paddle 文件夹，运行命令：
 
 ```shell
-bash test_tipc/prepare.sh ./test_tipc/configs/ddrnet/train_infer_python.txt 'lite_train_lite_infer'
-bash test_tipc/test_train_inference_python.sh ./test_tipc/configs/ddrnet/train_infer_python.txt 'lite_train_lite_infer'
+bash test_tipc/prepare.sh ./test_tipc/configs/DnCNN/train_infer_python.txt 'lite_train_lite_infer'
+bash test_tipc/test_train_inference_python.sh ./test_tipc/configs/DnCNN/train_infer_python.txt 'lite_train_lite_infer'
 ```
 
 ## 7. LICENSE

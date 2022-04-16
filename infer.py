@@ -1,96 +1,229 @@
+# Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import os
-from PIL import Image
-
-import glob
-
+import paddle
+from paddle import inference
+import numpy as np
 from paddle.distribution import Normal
 
-
+from reprod_log import ReprodLogger
 import cv2
-import argparse
-from utils import *
-from models import DnCNN
-import paddle
 
-parser = argparse.ArgumentParser(description="DnCNN_Inference")
-parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
-parser.add_argument("--log_dir", type=str, default="logs", help='path to model and log files')
-parser.add_argument("--data_path", type=str, default="data/BSD68/", help='path to training data')
-parser.add_argument("--save_path", type=str, default="results/", help='path to save results')
-parser.add_argument("--use_GPU", type=bool, default=True, help='use GPU or not')
-parser.add_argument("--gpu_id", type=str, default="0", help='GPU id')
-parser.add_argument("--test_noiseL", type=float, default=15, help='noise level used on test set')
+def normalize(data):
+    return data/255.
 
-opt = parser.parse_args()
+from skimage.metrics import peak_signal_noise_ratio
 
-if opt.use_GPU:
-    os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_id
 
-def main():
+def batch_PSNR(Img, Iclean, data_range):
+    PSNR = 0
+    for i in range(Img.shape[0]):
+        PSNR += peak_signal_noise_ratio(Iclean[i,:,:,:], Img[i,:,:,:], data_range=data_range)
+    return (PSNR/Img.shape[0])
 
-    os.makedirs(opt.save_path, exist_ok=True)
-    os.makedirs(opt.save_path + '/denoised/', exist_ok=True)
-    os.makedirs(opt.save_path + '/noised/', exist_ok=True)
-    os.makedirs(opt.save_path + '/couple/', exist_ok=True)
+def get_args(add_help=True):
+    """
+    parse args
+    """
+    import argparse
 
-    # Build model
-    print('Loading model ...\n')
-    model = DnCNN(channels=1, num_of_layers=opt.num_of_layers)
+    def str2bool(v):
+        return v.lower() in ("true", "t", "1")
 
-    model.set_state_dict(paddle.load(os.path.join(opt.log_dir, 'net.pdparams')))
-    model.eval()
+    parser = argparse.ArgumentParser(
+        description="MULTI-VIEW CLASSIFICATION", add_help=add_help)
 
-    # load data info
-    print('Loading data info ...\n')
-    files_source = glob.glob(os.path.join(opt.data_path, '*.png'))
-    files_source.sort()
+    parser.add_argument(
+        '--img-path',
+        type=str,
+        default="data/BSD68/test002.png",
+        help='path to inference data')
 
-    psnr_test = 0
-    for f in files_source:
-        # image
-        Img = cv2.imread(f)
-        Img = Img[:, :, 0]
-        
-        ISource = np.float32(Img)/255.
-        ISource = np.expand_dims(ISource, 0)
-        ISource = np.expand_dims(ISource, 1)
-        ISource = paddle.Tensor(ISource)
+    parser.add_argument(
+        "--model-dir", default=None, help="inference model dir")
+    parser.add_argument(
+        "--use-gpu", default=False, type=str2bool, help="use_gpu")
+    parser.add_argument("--batch-size", default=1, type=int, help="batch size")
+    parser.add_argument(
+        "--benchmark", default=False, type=str2bool, help="benchmark")
+
+    args = parser.parse_args()
+    return args
+
+
+class InferenceEngine(object):
+    """InferenceEngine
+    Inference engina class which contains preprocess, run, postprocess
+    """
+
+    def __init__(self, args):
+        """
+        Args:
+            args: Parameters generated using argparser.
+        Returns: None
+        """
+        super().__init__()
+        self.args = args
+
+        # init inference engine
+        self.predictor, self.config, self.input_tensor, self.output_tensor = self.load_predictor(
+            os.path.join(args.model_dir, "model.pdmodel"),
+            os.path.join(args.model_dir, "model.pdiparams"))
+
+
+    def load_predictor(self, model_file_path, params_file_path):
+        """load_predictor
+        initialize the inference engine
+        Args:
+            model_file_path: inference model path (*.pdmodel)
+            model_file_path: inference parmaeter path (*.pdiparams)
+        Return:
+            predictor: Predictor created using Paddle Inference.
+            config: Configuration of the predictor.
+            input_tensor: Input tensor of the predictor.
+            output_tensor: Output tensor of the predictor.
+        """
+        args = self.args
+        config = inference.Config(model_file_path, params_file_path)
+        if args.use_gpu:
+            config.enable_use_gpu(1000, 0)
+        else:
+            config.disable_gpu()
+
+        # enable memory optim
+        config.enable_memory_optim()
+        config.disable_glog_info()
+
+        config.switch_use_feed_fetch_ops(False)
+        config.switch_ir_optim(True)
+
+        # create predictor
+        predictor = inference.create_predictor(config)
+
+        # get input and output tensor property
+        input_names = predictor.get_input_names()
+        input_tensor = predictor.get_input_handle(input_names[0])
+
+        output_names = predictor.get_output_names()
+        output_tensor = predictor.get_output_handle(output_names[0])
+
+        return predictor, config, input_tensor, output_tensor
+
+    def preprocess(self, img_path):
+        """preprocess
+        Preprocess to the input.
+        Args:
+            data: data.
+        Returns: Input data after preprocess.
+        """
+        Img = cv2.imread(img_path)
+        Img = normalize(np.float32(Img[:, :, 0]))
+        Img = np.expand_dims(Img, 0)
+        ISource = np.expand_dims(Img, 1)
+        # ISource = paddle.Tensor(Img)
         # noise
 
-        normal = Normal([0.], [opt.test_noiseL / 255.])
-        noise = normal.sample(ISource.shape)
-        noise = paddle.squeeze(noise, axis=-1)
+        # normal = Normal([0.], [15 / 255.])
+        noise = np.random.normal(0, 15/255., size=ISource.shape)
+        # noise = normal.sample(ISource.shape)
+        # noise = paddle.squeeze(noise, axis=-1)
 
         # noisy image
         INoisy = ISource + noise
 
-        with paddle.no_grad():  # this can save much memory
-            Out = paddle.clip(model(INoisy), 0., 1.)
+        return ISource.astype(np.float32), INoisy.astype(np.float32)
+
+    def postprocess(self, ISource, IDenoised):
+        """postprocess
+        Postprocess to the inference engine output.
+        Args:
+            IDenoised: Inference denoised image.
+        Returns: Output denoised image.
+        """
+        Out = np.clip(IDenoised, 0., 1.)
 
         psnr = batch_PSNR(Out, ISource, 1.)
 
-        psnr_test += psnr
-        print("%s PSNR %f" % (f, psnr))
+        return psnr
 
-        if opt.use_GPU:
-            save_noised = np.uint8(255 * paddle.clip(INoisy, 0., 1.).detach().cpu().numpy().squeeze())  # back to cpu
-            save_out = np.uint8(255 * Out.detach().cpu().numpy().squeeze())  # back to cpu
-        else:
-            save_noised = np.uint8(255 * paddle.clip(INoisy, 0., 1.).numpy().squeeze())  # back to cpu
-            save_out = np.uint8(255 * Out.data.numpy().squeeze())
-
-        save_couple = np.hstack([Img, np.zeros([save_out.shape[0], 16] ,dtype=np.uint8), save_noised,np.zeros([save_out.shape[0], 16] ,dtype=np.uint8), save_out])
-
-        cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'noised/', f.split('/')[-1]),save_noised)
-        cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'denoised/', f.split('/')[-1]), save_out)
-        cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'couple/', f.split('/')[-1]), save_couple)
+    def run(self, data):
+        """run
+        Inference process using inference engine.
+        Args:
+            x: Input data after preprocess.
+        Returns: Inference engine output
+        """
+        self.input_tensor.copy_from_cpu(data)
+        self.predictor.run()
+        output = self.output_tensor.copy_to_cpu()
+        return output
 
 
-    psnr_test /= len(files_source)
 
-    print("\nPSNR on test data %f" % psnr_test)
 
+def infer_main(args):
+    """infer_main
+    Main inference function.
+    Args:
+        args: Parameters generated using argparser.
+    Returns:
+        label_id: Class index of the input.
+        prob: : Probability of the input.
+    """
+    inference_engine = InferenceEngine(args)
+
+    # init benchmark
+    if args.benchmark:
+        import auto_log
+        autolog = auto_log.AutoLogger(
+            model_name="DnCNN_denoising",
+            batch_size=args.batch_size,
+            inference_config=inference_engine.config,
+            gpu_ids="auto" if args.use_gpu else None)
+
+    assert args.batch_size == 1, "batch size just supports 1 now."
+
+    # enable benchmark
+    if args.benchmark:
+        autolog.times.start()
+
+    # dataset preprocess
+    ISource, INoisy = inference_engine.preprocess(args.img_path)
+    if args.benchmark:
+        autolog.times.stamp()
+
+    IDenoised = inference_engine.run(INoisy)
+
+    if args.benchmark:
+        autolog.times.stamp()
+
+    # postprocess
+    psnr = inference_engine.postprocess(ISource, IDenoised)
+
+    if args.benchmark:
+        autolog.times.stamp()
+        autolog.times.end(stamp=True)
+        autolog.report()
+
+    print(f"image_name: {args.img_path}, psnr: {psnr}")
+    return psnr
 
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+    psnr = infer_main(args)
+
+    reprod_logger = ReprodLogger()
+    reprod_logger.add("psnr", np.array([psnr]))
+    reprod_logger.save("output_inference_engine.npy")

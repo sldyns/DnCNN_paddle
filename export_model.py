@@ -8,7 +8,7 @@ from models import DnCNN
 parser = argparse.ArgumentParser(description="DnCNN_Test")
 parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
 parser.add_argument("--logdir", type=str, default="logs", help='path of log files')
-parser.add_argument("--savedir", type=str, default=".", help='path of model for export')
+parser.add_argument("--save-inference-dir", type=str, default=".", help='path of model for export')
 
 opt = parser.parse_args()
 
@@ -29,11 +29,11 @@ def main(opt):
     new_net = paddle.jit.to_static(
         new_model,
         input_spec=[paddle.static.InputSpec(shape=shape, dtype='float32')])
-    save_path = os.path.join(opt.savedir, 'model')
+    save_path = os.path.join(opt.save_inference_dir, 'model')
     paddle.jit.save(new_net, save_path)
 
 
-    print(f'Model is saved in {opt.savedir}.')
+    print(f'Model is saved in {opt.save_inference_dir}.')
 
 
 if __name__ == '__main__':
