@@ -1,6 +1,6 @@
 ===========================train_params===========================
 model_name:DnCNN
-python:python3.7
+python:python
 gpu_list:0
 use-gpu:True
 --epochs:lite_train_lite_infer=1|whole_train_whole_infer=20
@@ -11,10 +11,10 @@ train_model_name:net.pdparams
 --data-path:./test_tipc/data/Set2/
 ##
 trainer:norm_train
-norm_train:train.py --data_dir ./test_tipc/data/Set2/ --val_dir ./test_tipc/data/BSD68/ --preprocess True
+norm_train:train.py --data_dir ./test_tipc/data/Set2/ --val_dir ./test_tipc/data/Set2/ --preprocess True --stride 60 --aug_times 1
 ##
 ===========================eval_params===========================
-eval:val.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15 --save_images
+eval:val.py --log_dir logs --data_path ./test_tipc/data/Set2/ --test_noiseL 15
 ##
 ===========================infer_params===========================
 --save-inference-dir:./test_tipc/output/

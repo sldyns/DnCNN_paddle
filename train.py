@@ -16,6 +16,8 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
 parser = argparse.ArgumentParser(description="DnCNN")
 parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
+parser.add_argument("--stride", type=int, default=10, help='stride to dividing patches')
+parser.add_argument("--aug_times", type=int, default=2, help='times of augmentation')
 parser.add_argument("--batchSize", type=int, default=16, help="Training batch size")
 parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
 parser.add_argument("--epochs", type=int, default=200, help="Number of training epochs")
@@ -122,5 +124,5 @@ def main():
 
 if __name__ == "__main__":
     if opt.preprocess:
-        prepare_data(data_path=opt.data_dir, val_path=opt.val_dir, patch_size=40, stride=10, aug_times=2)
+        prepare_data(data_path=opt.data_dir, val_path=opt.val_dir, patch_size=40, stride=opt.stride, aug_times=opt.aug_times)
     main()
