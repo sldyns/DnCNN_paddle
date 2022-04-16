@@ -113,21 +113,35 @@ from visualdl.server import app
 app.run(logdir="logs")
 ```
 
-### 模型验证
+### 模型评估
 
-在 BSD58 数据集上作了 10 次测试，噪声强度为 15，结果存放在 `results/` 文件夹下
+在 BSD58 数据集上作了 10 次测试，噪声强度为 15
 
 ```shell
-python val.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15
+python val.py --log_dir logs --data_path data/BSD68/ --test_noiseL 15
 ```
 
 输出如下：
 
 ```
-10 times test on test data, Averate PSNR: 31.73757101865349, Variance: 1.6846021796340226e-05
+10 times test on test data, Averate PSNR: 31.73937683053843, Variance: 1.7706766908902732e-05
 ```
 
 显著达到了验收精度.
+
+### 模型预测
+
+在 BSD58 数据集上作预测，噪声强度为 15，结果存放在 `results/` 文件夹下
+
+```shell
+python predict.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15 --save_images
+```
+
+输出为：
+
+```shell
+PSNR on test data 31.739193
+```
 
 `results/couple` 中的图片为 原始图像、带噪图像、去噪结果，3 张图片拼接得到的：
 

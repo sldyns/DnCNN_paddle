@@ -15,11 +15,9 @@ parser = argparse.ArgumentParser(description="DnCNN_val")
 parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
 parser.add_argument("--log_dir", type=str, default="logs", help='path to model and log files')
 parser.add_argument("--data_path", type=str, default="data/BSD68/", help='path to training data')
-parser.add_argument("--save_path", type=str, default="results/", help='path to save results')
 parser.add_argument("--use_GPU", type=bool, default=True, help='use GPU or not')
 parser.add_argument("--gpu_id", type=str, default="0", help='GPU id')
 parser.add_argument("--test_noiseL", type=float, default=15, help='noise level used on test set')
-parser.add_argument('--save_images', action='store_true', help='Save images in result directory')
 
 opt = parser.parse_args()
 
@@ -27,11 +25,6 @@ if opt.use_GPU:
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_id
 
 def main():
-
-    os.makedirs(opt.save_path, exist_ok=True)
-    os.makedirs(opt.save_path + '/denoised/', exist_ok=True)
-    os.makedirs(opt.save_path + '/noised/', exist_ok=True)
-    os.makedirs(opt.save_path + '/couple/', exist_ok=True)
 
     # Build model
     print('Loading model ...\n')
@@ -75,20 +68,6 @@ def main():
 
             psnr_test += psnr
             print("%s PSNR %f" % (f, psnr))
-
-            if i == 9 and opt.save_images:
-                if opt.use_GPU:
-                    save_noised = np.uint8(255 * paddle.clip(INoisy, 0., 1.).detach().cpu().numpy().squeeze())  # back to cpu
-                    save_out = np.uint8(255 * Out.detach().cpu().numpy().squeeze())  # back to cpu
-                else:
-                    save_noised = np.uint8(255 * paddle.clip(INoisy, 0., 1.).numpy().squeeze())  # back to cpu
-                    save_out = np.uint8(255 * Out.data.numpy().squeeze())
-
-                save_couple = np.hstack([Img, np.zeros([save_out.shape[0], 16] ,dtype=np.uint8), save_noised,np.zeros([save_out.shape[0], 16] ,dtype=np.uint8), save_out])
-
-                cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'noised/', f.split('/')[-1]),save_noised)
-                cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'denoised/', f.split('/')[-1]), save_out)
-                cv2.imwrite(os.path.join(opt.save_path, opt.data_path.split('/')[-1], 'couple/', f.split('/')[-1]), save_couple)
 
         psnr_test /= len(files_source)
         psnr_test_all.append(psnr_test)
