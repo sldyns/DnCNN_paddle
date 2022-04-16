@@ -10,6 +10,8 @@ from dataset import prepare_data, DnCNN_Dataset
 from utils import *
 from paddle.distribution import Normal
 from visualdl import LogWriter
+import time
+import sys
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -62,8 +64,15 @@ def main():
 
             # train
             model.train()
+            # training log
+            train_reader_cost = 0.0
+            train_run_cost = 0.0
+            total_samples = 0
+            reader_start = time.time()
+            batch_past = 0
+            psnr = 0.0
 
-            for i, img_train in enumerate(loader_train, 0):
+            for batch_idx, img_train in enumerate(loader_train, 0):
 
                 # training step
 
@@ -75,6 +84,8 @@ def main():
                 img_train.stop_gradient = False
 
                 imgn_train = img_train + noise
+                train_reader_cost += time.time() - reader_start
+                train_start = time.time()
 
                 out_train = model(imgn_train)
                 loss = criterion(out_train, img_train) / (img_train.shape[0] * 2.)
@@ -82,18 +93,38 @@ def main():
                 optimizer.clear_grad()
                 loss.backward()
                 optimizer.step()
+                train_run_cost += time.time() - train_start
+                total_samples += img_train.shape[0]
+                batch_past += 1
+                psnr += batch_PSNR(out_train, img_train, 1.)
 
                 # results
-                if step % 200 == 0:
-                    psnr_train = batch_PSNR(out_train, img_train, 1.)
+                if batch_idx > 0 and batch_idx % 200 == 0:
 
-                    print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f" %
-                          (epoch + 1, i + 1, len(loader_train), loss.item(), psnr_train))
+                    msg = "[Epoch {}, iter: {}] psnr: {:.5f}, lr: {:.5f}, loss: {:.5f}, avg_reader_cost: {:.5f} sec, avg_batch_cost: {:.5f} sec, avg_samples: {}, avg_ips: {:.5f} images/sec.".format(
+                        epoch, batch_idx, psnr / batch_past,
+                        optimizer.get_lr(),
+                        loss.item(), train_reader_cost / batch_past,
+                                          (train_reader_cost + train_run_cost) / batch_past,
+                                          total_samples / batch_past,
+                                          total_samples / (train_reader_cost + train_run_cost))
 
                     # Log the scalar values
-
                     writer.add_scalar(tag='loss', value=loss.item(), step=step)
-                    writer.add_scalar(tag='PSNR on training data', value=psnr_train, step=step)
+                    writer.add_scalar(tag='PSNR on training data', value=psnr / batch_past, step=step)
+
+                    # just log on 1st device
+                    if paddle.distributed.get_rank() <= 0:
+                        print(msg)
+                    sys.stdout.flush()
+                    train_reader_cost = 0.0
+                    train_run_cost = 0.0
+                    total_samples = 0
+                    psnr = 0.0
+                    batch_past = 0
+
+                reader_start = time.time()
+                
                 step += 1
 
             ## the end of each epoch
