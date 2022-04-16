@@ -50,16 +50,17 @@ DnCNN_Paddle
     |-- LICENSE              # LICENSE文件
     |-- models.py            # 模型定义代码
     |-- README.md            # README.md文件
-    |-- val.py               # 验证文件
+    |-- val.py               # 模型评估代码
+    |-- predict.py			# 模型预测代码
     |-- train.py             # 单机单卡训练文件
     |-- train2.py            # 单机多卡训练文件
     |-- utils.py             # 一些工具文件
-    |-- infer.py             # 推理代码
+    |-- infer.py             # 模型推理代码
 ```
 
 ## 4. 环境依赖
 
-PaddlePaddle >= 2.1.2
+PaddlePaddle >= 2.2.0
 
 scikit-image == 0.19.2
 
