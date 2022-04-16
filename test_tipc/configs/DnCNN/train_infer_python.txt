@@ -11,7 +11,7 @@ train_model_name:net.pdparams
 --data-path:./test_tipc/data/Set2/
 ##
 trainer:norm_train
-norm_train:train.py --val_dir ./test_tipc/data/BSD68/
+norm_train:train.py --data_dir ./test_tipc/data/Set2/ --val_dir ./test_tipc/data/BSD68/ --preprocess True
 ##
 ===========================eval_params===========================
 eval:val.py --log_dir logs --data_path data/BSD68/ --save_path results/ --test_noiseL 15 --save_images
